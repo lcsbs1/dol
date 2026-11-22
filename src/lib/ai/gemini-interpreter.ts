@@ -1,5 +1,6 @@
 import { GoogleGenAI } from "@google/genai";
 import type { SupportedAudioMime } from "./audio";
+import { LocalFallbackInterpreter } from "./local-fallback-interpreter";
 import { DOL_INTENT_JSON_SCHEMA, dolIntentSchema, type DolIntent } from "./schema";
 
 export interface InterpretRequest {
@@ -33,13 +34,66 @@ REGRAS ESTRITAS:
 8. Categorias permitidas para entrada: salario, freelance, rendimentos, outros_entrada.
 9. Mantenha "title" curto e limpo (ex: "Almoço", "Tênis", "Aluguel").`;
 
+const CANDIDATE_MODELS = [
+  process.env.GEMINI_MODEL || "gemini-2.5-flash",
+  "gemini-2.5-flash",
+  "gemini-2.5-flash-lite",
+  "gemini-1.5-flash",
+];
+
 export class GeminiFinanceInterpreter implements FinanceInterpreter {
   private readonly client: GoogleGenAI;
-  private readonly model: string;
+  private readonly fallback: LocalFallbackInterpreter;
 
-  constructor(apiKey: string, model = process.env.GEMINI_MODEL || "gemini-3.8-flash") {
+  constructor(apiKey: string) {
     this.client = new GoogleGenAI({ apiKey });
-    this.model = model;
+    this.fallback = new LocalFallbackInterpreter();
+  }
+
+  private async generateWithFallbackModels(
+    contents: unknown,
+    responseSchema: unknown
+  ): Promise<string> {
+    const modelsToTry = Array.from(new Set(CANDIDATE_MODELS.filter(Boolean)));
+    let lastError: unknown;
+
+    for (const model of modelsToTry) {
+      try {
+        const response = await this.client.models.generateContent({
+          model,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          contents: contents as any,
+          config: {
+            responseMimeType: "application/json",
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            responseSchema: responseSchema as any,
+          },
+        });
+
+        const rawJson = response.text;
+        if (rawJson?.trim()) {
+          return rawJson;
+        }
+      } catch (err: unknown) {
+        lastError = err;
+        const msg = String(err);
+        // Se for 503 (alta demanda), 429 (rate limit) ou 404 (modelo indisponível no tier), tenta o próximo modelo
+        if (
+          msg.includes("503") ||
+          msg.includes("429") ||
+          msg.includes("UNAVAILABLE") ||
+          msg.includes("high demand") ||
+          msg.includes("404") ||
+          msg.includes("NOT_FOUND")
+        ) {
+          console.warn(`[Gemini] Modelo ${model} indisponível/sobrecarregado. Tentando alternativa...`);
+          continue;
+        }
+        throw err;
+      }
+    }
+
+    throw lastError;
   }
 
   async interpret(input: InterpretRequest): Promise<DolIntent> {
@@ -47,52 +101,36 @@ export class GeminiFinanceInterpreter implements FinanceInterpreter {
 
     try {
       if (input.audio) {
-        const response = await this.client.models.generateContent({
-          model: this.model,
-          contents: [
-            `${DOL_FINANCE_SYSTEM_PROMPT}\n\n${contextHeader}\nTranscreva literalmente em "transcript" e classifique a intenção financeira do áudio.`,
-            {
-              inlineData: {
-                data: input.audio.base64,
-                mimeType: input.audio.mimeType,
-              },
+        const contents = [
+          `${DOL_FINANCE_SYSTEM_PROMPT}\n\n${contextHeader}\nTranscreva literalmente em "transcript" e classifique a intenção financeira do áudio.`,
+          {
+            inlineData: {
+              data: input.audio.base64,
+              mimeType: input.audio.mimeType,
             },
-          ],
-          config: {
-            responseMimeType: "application/json",
-            responseSchema: DOL_INTENT_JSON_SCHEMA,
           },
-        });
+        ];
 
-        const rawJson = response.text;
-        if (!rawJson) {
-          throw new Error("Gemini retornou resposta vazia.");
-        }
-
+        const rawJson = await this.generateWithFallbackModels(
+          contents,
+          DOL_INTENT_JSON_SCHEMA
+        );
         const parsed = JSON.parse(rawJson);
         return dolIntentSchema.parse(parsed);
       }
 
       // Text input
-      const response = await this.client.models.generateContent({
-        model: this.model,
-        contents: `${DOL_FINANCE_SYSTEM_PROMPT}\n\n${contextHeader}\nEntrada do usuário: ${input.text ?? ""}`,
-        config: {
-          responseMimeType: "application/json",
-          responseSchema: DOL_INTENT_JSON_SCHEMA,
-        },
-      });
-
-      const rawJson = response.text;
-      if (!rawJson) {
-        throw new Error("Gemini retornou resposta vazia.");
-      }
-
+      const contents = `${DOL_FINANCE_SYSTEM_PROMPT}\n\n${contextHeader}\nEntrada do usuário: ${input.text ?? ""}`;
+      const rawJson = await this.generateWithFallbackModels(
+        contents,
+        DOL_INTENT_JSON_SCHEMA
+      );
       const parsed = JSON.parse(rawJson);
       return dolIntentSchema.parse(parsed);
     } catch (err) {
-      console.error("[GeminiFinanceInterpreter error]", err);
-      throw err;
+      console.warn("[GeminiFinanceInterpreter] Todos os modelos Gemini falharam/sobrecarregados. Acionando fallback semântico local resiliente:", err);
+      // Resiliência de alto padrão: se a API do Google estiver com pico de 503 mundial, o app NÃO cai!
+      return this.fallback.interpret(input);
     }
   }
 }
