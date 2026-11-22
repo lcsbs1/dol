@@ -45,38 +45,54 @@ export class GeminiFinanceInterpreter implements FinanceInterpreter {
   async interpret(input: InterpretRequest): Promise<DolIntent> {
     const contextHeader = `Contexto: mês ativo ${input.activeMonth}, data atual ${input.todayISO}.`;
 
-    const interactionInput = input.audio
-      ? [
-          {
-            type: "text" as const,
-            text: `${contextHeader}\nTranscreva literalmente em "transcript" e classifique a intenção financeira do áudio.`,
+    try {
+      if (input.audio) {
+        const response = await this.client.models.generateContent({
+          model: this.model,
+          contents: [
+            `${DOL_FINANCE_SYSTEM_PROMPT}\n\n${contextHeader}\nTranscreva literalmente em "transcript" e classifique a intenção financeira do áudio.`,
+            {
+              inlineData: {
+                data: input.audio.base64,
+                mimeType: input.audio.mimeType,
+              },
+            },
+          ],
+          config: {
+            responseMimeType: "application/json",
+            responseSchema: DOL_INTENT_JSON_SCHEMA,
           },
-          {
-            type: "audio" as const,
-            data: input.audio.base64,
-            mime_type: input.audio.mimeType,
-          },
-        ]
-      : `${contextHeader}\nEntrada do usuário: ${input.text ?? ""}`;
+        });
 
-    const interaction = await this.client.interactions.create({
-      model: this.model,
-      store: false,
-      system_instruction: DOL_FINANCE_SYSTEM_PROMPT,
-      input: interactionInput,
-      response_format: {
-        type: "text",
-        mime_type: "application/json",
-        schema: DOL_INTENT_JSON_SCHEMA,
-      },
-    });
+        const rawJson = response.text;
+        if (!rawJson) {
+          throw new Error("Gemini retornou resposta vazia.");
+        }
 
-    const rawJson = interaction.output_text;
-    if (!rawJson) {
-      throw new Error("Gemini retornou resposta vazia.");
+        const parsed = JSON.parse(rawJson);
+        return dolIntentSchema.parse(parsed);
+      }
+
+      // Text input
+      const response = await this.client.models.generateContent({
+        model: this.model,
+        contents: `${DOL_FINANCE_SYSTEM_PROMPT}\n\n${contextHeader}\nEntrada do usuário: ${input.text ?? ""}`,
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: DOL_INTENT_JSON_SCHEMA,
+        },
+      });
+
+      const rawJson = response.text;
+      if (!rawJson) {
+        throw new Error("Gemini retornou resposta vazia.");
+      }
+
+      const parsed = JSON.parse(rawJson);
+      return dolIntentSchema.parse(parsed);
+    } catch (err) {
+      console.error("[GeminiFinanceInterpreter error]", err);
+      throw err;
     }
-
-    const parsed = JSON.parse(rawJson);
-    return dolIntentSchema.parse(parsed);
   }
 }
