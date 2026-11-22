@@ -2,11 +2,15 @@ import { GeminiFinanceInterpreter, type FinanceInterpreter } from "./gemini-inte
 import { LocalFallbackInterpreter } from "./local-fallback-interpreter";
 
 export function isGeminiConfigured(): boolean {
-  return Boolean(process.env.GEMINI_API_KEY?.trim());
+  return Boolean(
+    (process.env.GEMINI_API_KEY || process.env.Gemini_API_Key)?.trim()
+  );
 }
 
 export function getFinanceInterpreter(): FinanceInterpreter {
-  const apiKey = process.env.GEMINI_API_KEY?.trim();
+  const apiKey = (
+    process.env.GEMINI_API_KEY || process.env.Gemini_API_Key
+  )?.trim();
 
   if (apiKey) {
     return new GeminiFinanceInterpreter(apiKey);
