@@ -30,19 +30,6 @@ function buildRingSliceGeometry(startAngle: number, endAngle: number): THREE.Ext
   shape.absarc(0, 0, innerRadius, endAngle, startAngle, true);
   shape.closePath();
 
-  const geometry = new THREE.ExtrudeGeometry(shape, {
-    depth: 0.42,
-    bevelEnabled: true,
-    bevelThickness: 0.055,
-    bevelSize: 0.04,
-    bevelSegments: 4,
-    curveSegments: 36,
-  });
-
-  geometry.center();
-  // Mantém centrada em Y=0 mas preserva posição radial original calculando offset depois
-  geometry.dispose();
-
   const rawGeo = new THREE.ExtrudeGeometry(shape, {
     depth: 0.42,
     bevelEnabled: true,
@@ -149,6 +136,56 @@ function EmptyRingMesh({ isDark }: { isDark: boolean }) {
   );
 }
 
+function ResponsiveDonutGroup({
+  specs,
+  selectedCategory,
+  highlightedCategory,
+  onSelectCategory,
+  isDark,
+}: {
+  specs: SliceGeometrySpec[];
+  selectedCategory: ExpenseCategorySlug | null;
+  highlightedCategory: ExpenseCategorySlug | null;
+  onSelectCategory: (slug: ExpenseCategorySlug | null) => void;
+  isDark: boolean;
+}) {
+  const { viewport, invalidate } = useThree();
+  // Diâmetro total do donut (~3.84) + folga para o offset radial de seleção (~0.36)
+  const donutSpan = 4.2;
+  const fitWidth = (viewport.width * 0.84) / donutSpan;
+  const fitHeight = (viewport.height * 0.88) / (donutSpan * 0.82);
+  const scale = Math.max(0.32, Math.min(0.95, fitWidth, fitHeight));
+
+  useEffect(() => {
+    invalidate();
+  }, [scale, invalidate]);
+
+  return (
+    <group rotation={[0.08, 0, 0]} scale={[scale, scale, scale]}>
+      {specs.length === 0 ? (
+        <EmptyRingMesh isDark={isDark} />
+      ) : (
+        specs.map((spec) => (
+          <DonutSliceMesh
+            key={spec.slice.category_slug}
+            spec={spec}
+            isSelected={selectedCategory === spec.slice.category_slug}
+            isHighlighted={highlightedCategory === spec.slice.category_slug}
+            onSelect={() =>
+              onSelectCategory(
+                selectedCategory === spec.slice.category_slug
+                  ? null
+                  : spec.slice.category_slug
+              )
+            }
+            isDark={isDark}
+          />
+        ))
+      )}
+    </group>
+  );
+}
+
 export default function Donut3DScene({
   slices,
   selectedCategory,
@@ -190,35 +227,20 @@ export default function Donut3DScene({
     <Canvas
       dpr={[1, 2]}
       frameloop="demand"
-      camera={{ position: [0, 3.6, 3.7], fov: 36 }}
+      camera={{ position: [0, 3.8, 4.1], fov: 36 }}
       onPointerMissed={() => onSelectCategory(null)}
     >
       <ambientLight intensity={isDark ? 0.85 : 1.05} />
       <directionalLight position={[4, 7, 5]} intensity={isDark ? 1.55 : 1.35} />
       <directionalLight position={[-4, 3, -4]} intensity={0.55} color="#A5B4FC" />
 
-      <group rotation={[0.08, 0, 0]}>
-        {specs.length === 0 ? (
-          <EmptyRingMesh isDark={isDark} />
-        ) : (
-          specs.map((spec) => (
-            <DonutSliceMesh
-              key={spec.slice.category_slug}
-              spec={spec}
-              isSelected={selectedCategory === spec.slice.category_slug}
-              isHighlighted={highlightedCategory === spec.slice.category_slug}
-              onSelect={() =>
-                onSelectCategory(
-                  selectedCategory === spec.slice.category_slug
-                    ? null
-                    : spec.slice.category_slug
-                )
-              }
-              isDark={isDark}
-            />
-          ))
-        )}
-      </group>
+      <ResponsiveDonutGroup
+        specs={specs}
+        selectedCategory={selectedCategory}
+        highlightedCategory={highlightedCategory}
+        onSelectCategory={onSelectCategory}
+        isDark={isDark}
+      />
 
       <OrbitControls
         enablePan={false}

@@ -130,35 +130,37 @@ export function FinanceStage3D({
 
       {/* Área 3D */}
       {!collapsedMobile && (
-        <div className="relative mt-2 h-52 w-full sm:h-60 lg:mt-4 lg:h-72 lg:flex-1">
+        <div className="mt-2 flex flex-col lg:mt-4 lg:flex-1 lg:min-h-0">
           {stageTab === "donut" ? (
             <>
-              <StageErrorBoundary
-                fallback={
-                  <FallbackDonut2D
+              <div className="relative h-48 w-full sm:h-56 lg:h-auto lg:min-h-[240px] lg:flex-1">
+                <StageErrorBoundary
+                  fallback={
+                    <FallbackDonut2D
+                      slices={summary.slices}
+                      selectedCategory={selectedCategory}
+                      onSelectCategory={(slug) => {
+                        triggerTactileFeedback("slice");
+                        onSelectCategory(slug);
+                      }}
+                    />
+                  }
+                >
+                  <Donut3DScene
                     slices={summary.slices}
                     selectedCategory={selectedCategory}
+                    highlightedCategory={highlightedCategory}
                     onSelectCategory={(slug) => {
                       triggerTactileFeedback("slice");
                       onSelectCategory(slug);
                     }}
+                    isDark={isDark}
                   />
-                }
-              >
-                <Donut3DScene
-                  slices={summary.slices}
-                  selectedCategory={selectedCategory}
-                  highlightedCategory={highlightedCategory}
-                  onSelectCategory={(slug) => {
-                    triggerTactileFeedback("slice");
-                    onSelectCategory(slug);
-                  }}
-                  isDark={isDark}
-                />
-              </StageErrorBoundary>
+                </StageErrorBoundary>
+              </div>
 
-              {/* HUD central / inferior */}
-              <div className="pointer-events-none absolute inset-x-0 bottom-1 flex items-center justify-between px-2">
+              {/* HUD inferior separado do Canvas para nunca sobrepor o 3D */}
+              <div className="mt-1 flex items-center justify-between px-1">
                 <div>
                   <p className="text-[11px] font-medium uppercase tracking-wider text-[var(--text-muted)]">
                     {selectedSlice
@@ -199,7 +201,7 @@ export function FinanceStage3D({
                   <button
                     type="button"
                     onClick={() => onSelectCategory(null)}
-                    className="pointer-events-auto inline-flex items-center gap-1 rounded-full border border-[var(--border-subtle)] bg-[var(--surface-2)]/90 px-2.5 py-1 text-[11px] font-medium text-[var(--text-secondary)] backdrop-blur-sm"
+                    className="inline-flex items-center gap-1 rounded-full border border-[var(--border-subtle)] bg-[var(--surface-2)]/90 px-2.5 py-1 text-[11px] font-medium text-[var(--text-secondary)] backdrop-blur-sm"
                   >
                     <X className="h-3 w-3" />
                     Limpar
@@ -209,31 +211,33 @@ export function FinanceStage3D({
             </>
           ) : (
             <>
-              <StageErrorBoundary
-                fallback={
-                  <FallbackCommitments2D
+              <div className="relative h-48 w-full sm:h-56 lg:h-auto lg:min-h-[240px] lg:flex-1">
+                <StageErrorBoundary
+                  fallback={
+                    <FallbackCommitments2D
+                      future={future}
+                      selectedMonth={selectedFutureMonth}
+                      onSelectMonth={(m) => {
+                        triggerTactileFeedback("slice");
+                        setSelectedFutureMonth(m);
+                      }}
+                    />
+                  }
+                >
+                  <Commitments3DScene
                     future={future}
                     selectedMonth={selectedFutureMonth}
                     onSelectMonth={(m) => {
                       triggerTactileFeedback("slice");
                       setSelectedFutureMonth(m);
                     }}
+                    isDark={isDark}
                   />
-                }
-              >
-                <Commitments3DScene
-                  future={future}
-                  selectedMonth={selectedFutureMonth}
-                  onSelectMonth={(m) => {
-                    triggerTactileFeedback("slice");
-                    setSelectedFutureMonth(m);
-                  }}
-                  isDark={isDark}
-                />
-              </StageErrorBoundary>
+                </StageErrorBoundary>
+              </div>
 
               {activeFuture && (
-                <div className="pointer-events-none absolute inset-x-0 bottom-1 flex items-end justify-between px-2">
+                <div className="mt-1 flex items-end justify-between px-1">
                   <div>
                     <p className="text-[11px] font-medium uppercase tracking-wider text-[var(--text-muted)]">
                       {formatMonthLabel(activeFuture.billing_month)}
