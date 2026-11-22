@@ -1,0 +1,18 @@
+# Dependencies
+node_modules/
+
+# Next.js
+.next/
+out/
+next-env.d.ts
+
+# Environment & Local Data
+.env
+.env.local
+.env.*.local
+.dol-dev-data.json
+
+# OS & Logs
+.DS_Store
+*.log
+npm-debug.log*
