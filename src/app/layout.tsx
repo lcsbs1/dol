@@ -31,8 +31,8 @@ export const viewport: Viewport = {
   maximumScale: 1,
   viewportFit: "cover",
   themeColor: [
-    { media: "(prefers-color-scheme: dark)", color: "#090A0D" },
-    { media: "(prefers-color-scheme: light)", color: "#F6F7FB" },
+    { media: "(prefers-color-scheme: dark)", color: "#0B0C0F" },
+    { media: "(prefers-color-scheme: light)", color: "#F3F4F8" },
   ],
 };
 
@@ -48,7 +48,7 @@ export default function RootLayout({
       className={`${plusJakarta.variable} ${jetbrainsMono.variable}`}
       suppressHydrationWarning
     >
-      <body className="antialiased selection:bg-emerald-500/25 selection:text-emerald-200">
+      <body className="antialiased selection:bg-[#D5C2FA]/30 selection:text-[#F5F6FA]">
         {children}
       </body>
     </html>

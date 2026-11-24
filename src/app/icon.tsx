@@ -17,7 +17,7 @@ export default function Icon() {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          background: "#090A0D",
+          background: "#0B0C0F",
           borderRadius: 112,
         }}
       >
@@ -26,9 +26,9 @@ export default function Icon() {
             width: 300,
             height: 300,
             borderRadius: "9999px",
-            border: "54px solid #F5F6F8",
-            borderTopColor: "#10B981",
-            borderRightColor: "#3B82F6",
+            border: "54px solid #F5F6FA",
+            borderTopColor: "#EEF49B",
+            borderRightColor: "#D5C2FA",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -39,7 +39,7 @@ export default function Icon() {
               width: 54,
               height: 54,
               borderRadius: "9999px",
-              background: "#10B981",
+              background: "#EEF49B",
             }}
           />
         </div>

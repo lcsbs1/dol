@@ -153,6 +153,7 @@ export class LocalDevFinanceRepository implements FinanceRepository {
   async updateProfile(
     userId: string,
     patch: {
+      display_name?: string;
       default_budget_cents?: number | null;
       theme_preference?: ThemePreference;
       sound_enabled?: boolean;
@@ -162,6 +163,9 @@ export class LocalDevFinanceRepository implements FinanceRepository {
     const profile = store.profiles.find((p) => p.id === userId);
     if (!profile) throw new Error("Perfil não encontrado");
 
+    if (patch.display_name !== undefined) {
+      profile.display_name = patch.display_name;
+    }
     if (patch.default_budget_cents !== undefined) {
       profile.default_budget_cents = patch.default_budget_cents;
     }
@@ -506,6 +510,26 @@ export class LocalDevFinanceRepository implements FinanceRepository {
     store.monthly_budgets.push(record);
     writeStore(store);
     return record;
+  }
+
+  async deleteMonthlyBudget(
+    userId: string,
+    billingMonth: string,
+    categorySlug: CategorySlug | null
+  ): Promise<boolean> {
+    const store = readStore();
+    const before = store.monthly_budgets.length;
+    store.monthly_budgets = store.monthly_budgets.filter(
+      (b) =>
+        !(
+          b.user_id === userId &&
+          b.billing_month === billingMonth &&
+          b.category_slug === categorySlug
+        )
+    );
+    if (store.monthly_budgets.length === before) return false;
+    writeStore(store);
+    return true;
   }
 
   async listChatEvents(

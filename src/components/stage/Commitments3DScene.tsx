@@ -19,26 +19,40 @@ function ResponsiveBarsGroup({
   isDark,
 }: Commitments3DSceneProps) {
   const { viewport, invalidate } = useThree();
-  const maxTotal = Math.max(1, ...future.map((m) => m.total_cents));
-  const totalWidth = Math.max(1, future.length) * 0.78 + 0.4;
-  const scale = Math.max(0.45, Math.min(1, (viewport.width * 0.86) / totalWidth));
+  const visibleMonths = future.slice(0, 6);
+  const count = Math.max(1, visibleMonths.length);
+  const maxTotal = Math.max(1, ...visibleMonths.map((m) => m.total_cents));
+
+  // Distribui os pilares 3D exatamente nos 6 slots horizontais da grade CSS
+  const colWidth = (viewport.width * 0.96) / count;
+  const barWidth = Math.min(0.62, Math.max(0.28, colWidth * 0.48));
+  const barDepth = Math.min(0.46, barWidth * 0.85);
+  const maxHeight = Math.max(1.2, viewport.height * 0.68);
+  const baseY = -maxHeight * 0.5;
 
   useEffect(() => {
     invalidate();
-  }, [scale, invalidate, selectedMonth]);
+  }, [viewport.width, viewport.height, invalidate, selectedMonth, future]);
 
   return (
-    <group position={[0, -0.75 * scale, 0]} scale={[scale, scale, scale]}>
-      {future.map((month, idx) => {
-        const x = (idx - (future.length - 1) / 2) * 0.78;
-        const fixedHeight = Math.max(0.08, (month.fixed_cents / maxTotal) * 2.1);
-        const instHeight = (month.installment_cents / maxTotal) * 2.1;
+    <group position={[0, baseY, 0]}>
+      {visibleMonths.map((month, idx) => {
+        const x = -(viewport.width * 0.96) / 2 + colWidth * (idx + 0.5);
+        const hasAny = month.total_cents > 0;
+        const fixedHeight = month.fixed_cents > 0
+          ? Math.max(0.14, (month.fixed_cents / maxTotal) * maxHeight)
+          : hasAny
+            ? 0
+            : 0.08;
+        const instHeight = month.installment_cents > 0
+          ? Math.max(0.14, (month.installment_cents / maxTotal) * maxHeight)
+          : 0;
         const isSelected = selectedMonth === month.billing_month;
 
         return (
           <group
             key={month.billing_month}
-            position={[x, 0, isSelected ? 0.22 : 0]}
+            position={[x, 0, isSelected ? 0.16 : 0]}
             onClick={(e) => {
               e.stopPropagation();
               onSelectMonth(month.billing_month);
@@ -51,24 +65,40 @@ function ResponsiveBarsGroup({
               document.body.style.cursor = "default";
             }}
           >
-            {/* Base: Despesas Fixas */}
-            <mesh position={[0, fixedHeight / 2, 0]}>
-              <boxGeometry args={[0.46, fixedHeight, 0.46]} />
-              <meshStandardMaterial
-                color={isSelected ? "#3B82F6" : isDark ? "#334155" : "#94A3B8"}
-                roughness={0.35}
-                metalness={0.12}
-              />
-            </mesh>
+            {/* Base: Despesas Fixas (ou placeholder discreto se zerado) */}
+            {fixedHeight > 0 && (
+              <mesh position={[0, fixedHeight / 2, 0]}>
+                <boxGeometry args={[barWidth, fixedHeight, barDepth]} />
+                <meshStandardMaterial
+                  color={
+                    !hasAny
+                      ? isDark
+                        ? "#252833"
+                        : "#D8DCE6"
+                      : isSelected
+                        ? "#F6FBBA"
+                        : "#EAF295"
+                  }
+                  roughness={0.42}
+                  metalness={0.04}
+                />
+              </mesh>
+            )}
 
             {/* Topo: Parcelamentos */}
-            {instHeight > 0.02 && (
-              <mesh position={[0, fixedHeight + instHeight / 2 + 0.04, 0]}>
-                <boxGeometry args={[0.46, instHeight, 0.46]} />
+            {instHeight > 0 && (
+              <mesh
+                position={[
+                  0,
+                  fixedHeight + instHeight / 2 + (fixedHeight > 0 ? 0.04 : 0),
+                  0,
+                ]}
+              >
+                <boxGeometry args={[barWidth, instHeight, barDepth]} />
                 <meshStandardMaterial
-                  color={isSelected ? "#34D399" : "#10B981"}
-                  roughness={0.3}
-                  metalness={0.15}
+                  color={isSelected ? "#E5D7FD" : "#D5C2FA"}
+                  roughness={0.4}
+                  metalness={0.05}
                 />
               </mesh>
             )}
@@ -89,11 +119,11 @@ export default function Commitments3DScene({
     <Canvas
       dpr={[1, 2]}
       frameloop="demand"
-      camera={{ position: [0, 2.7, 5.1], fov: 36 }}
+      camera={{ position: [0, 2.35, 13.5], fov: 15 }}
     >
-      <ambientLight intensity={isDark ? 0.9 : 1.1} />
-      <directionalLight position={[4, 6, 4]} intensity={1.45} />
-      <directionalLight position={[-4, 2, -2]} intensity={0.45} color="#60A5FA" />
+      <ambientLight intensity={isDark ? 1.05 : 1.15} />
+      <directionalLight position={[4, 6, 4]} intensity={1.2} color="#FFFDF5" />
+      <directionalLight position={[-4, 2, -2]} intensity={0.5} color="#D5C2FA" />
 
       <ResponsiveBarsGroup
         future={future}
@@ -105,8 +135,10 @@ export default function Commitments3DScene({
       <OrbitControls
         enablePan={false}
         enableZoom={false}
-        minPolarAngle={Math.PI / 4}
-        maxPolarAngle={Math.PI / 2.2}
+        minAzimuthAngle={-0.12}
+        maxAzimuthAngle={0.12}
+        minPolarAngle={Math.PI / 3.4}
+        maxPolarAngle={Math.PI / 2.15}
         enableDamping
         dampingFactor={0.08}
       />

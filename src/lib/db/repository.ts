@@ -85,6 +85,7 @@ export interface FinanceRepository {
   updateProfile(
     userId: string,
     patch: {
+      display_name?: string;
       default_budget_cents?: number | null;
       theme_preference?: ThemePreference;
       sound_enabled?: boolean;
@@ -140,6 +141,11 @@ export interface FinanceRepository {
     categorySlug: CategorySlug | null,
     limitCents: number
   ): Promise<MonthlyBudgetRecord>;
+  deleteMonthlyBudget(
+    userId: string,
+    billingMonth: string,
+    categorySlug: CategorySlug | null
+  ): Promise<boolean>;
 
   // Stream de Eventos
   listChatEvents(userId: string, billingMonth: string, limit?: number): Promise<ChatEventRecord[]>;

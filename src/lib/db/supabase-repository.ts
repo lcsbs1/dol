@@ -152,12 +152,16 @@ export class SupabaseFinanceRepository implements FinanceRepository {
   async updateProfile(
     userId: string,
     patch: {
+      display_name?: string;
       default_budget_cents?: number | null;
       theme_preference?: ThemePreference;
       sound_enabled?: boolean;
     }
   ): Promise<ProfileRecord> {
     const updatePayload: Record<string, unknown> = {};
+    if (patch.display_name !== undefined) {
+      updatePayload.display_name = patch.display_name;
+    }
     if (patch.default_budget_cents !== undefined) {
       updatePayload.default_budget_cents = patch.default_budget_cents;
     }
@@ -578,6 +582,27 @@ export class SupabaseFinanceRepository implements FinanceRepository {
 
     if (error || !data) throw new Error(error?.message ?? "Erro ao salvar teto");
     return data as MonthlyBudgetRecord;
+  }
+
+  async deleteMonthlyBudget(
+    userId: string,
+    billingMonth: string,
+    categorySlug: CategorySlug | null
+  ): Promise<boolean> {
+    let query = this.client
+      .from("monthly_budgets")
+      .delete({ count: "exact" })
+      .eq("user_id", userId)
+      .eq("billing_month", billingMonth);
+
+    query =
+      categorySlug === null
+        ? query.is("category_slug", null)
+        : query.eq("category_slug", categorySlug);
+
+    const { error, count } = await query;
+    if (error) throw new Error(error.message);
+    return (count ?? 0) > 0;
   }
 
   async listChatEvents(

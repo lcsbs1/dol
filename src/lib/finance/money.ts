@@ -114,6 +114,23 @@ export function formatMonthLabel(billingMonth: string): string {
   return d.toLocaleDateString("pt-BR", { month: "short", year: "numeric" }).replace(".", "");
 }
 
+export function formatMonthLongLabel(billingMonth: string): string {
+  if (!isValidBillingMonth(billingMonth)) return billingMonth;
+  const [y, m] = billingMonth.split("-").map(Number);
+  const d = new Date(y, m - 1, 1);
+  const monthName = d.toLocaleDateString("pt-BR", { month: "long" });
+  const capitalized = monthName.charAt(0).toUpperCase() + monthName.slice(1);
+  return `${capitalized} ${y}`;
+}
+
+export function formatMonthShortName(billingMonth: string): string {
+  if (!isValidBillingMonth(billingMonth)) return billingMonth;
+  const [y, m] = billingMonth.split("-").map(Number);
+  const d = new Date(y, m - 1, 1);
+  const short = d.toLocaleDateString("pt-BR", { month: "short" }).replace(".", "");
+  return short.charAt(0).toUpperCase() + short.slice(1);
+}
+
 export function buildOccurredOnForMonth(billingMonth: string, dayOfMonth: number): string {
   const [y, m] = billingMonth.split("-").map(Number);
   const lastDay = new Date(y, m, 0).getDate();

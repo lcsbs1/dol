@@ -13,6 +13,7 @@ const budgetPutSchema = z.object({
     .optional(),
   category_slug: z.string().min(1).max(32).nullable().optional(),
   limit_cents: z.number().int().positive().max(100_000_000).optional(),
+  display_name: z.string().trim().min(1).max(40).optional(),
   theme_preference: z.enum(["dark", "light", "system"]).optional(),
   sound_enabled: z.boolean().optional(),
 });
@@ -42,8 +43,13 @@ export async function PUT(request: NextRequest) {
       }
     }
 
-    if (parsed.theme_preference !== undefined || parsed.sound_enabled !== undefined) {
+    if (
+      parsed.display_name !== undefined ||
+      parsed.theme_preference !== undefined ||
+      parsed.sound_enabled !== undefined
+    ) {
       await repo.updateProfile(session.userId, {
+        display_name: parsed.display_name,
         theme_preference: parsed.theme_preference,
         sound_enabled: parsed.sound_enabled,
       });
@@ -54,5 +60,38 @@ export async function PUT(request: NextRequest) {
   } catch (err) {
     const message = err instanceof Error ? err.message : "Erro ao atualizar preferências.";
     return NextResponse.json({ error: message }, { status: 400 });
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  if (!assertCsrfAndOrigin(request)) {
+    return NextResponse.json({ error: "Requisição inválida." }, { status: 403 });
+  }
+  const session = await requireSession(request);
+  if (!session) {
+    return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
+  }
+
+  try {
+    const repo = getRepository();
+    const rawMonth = request.nextUrl.searchParams.get("month");
+    const activeMonth =
+      rawMonth && isValidBillingMonth(rawMonth) ? rawMonth : getCurrentBillingMonth();
+    const rawCategory = request.nextUrl.searchParams.get("category");
+    const categorySlug =
+      rawCategory && rawCategory.trim().length > 0
+        ? (rawCategory.trim() as CategorySlug)
+        : null;
+
+    await repo.deleteMonthlyBudget(session.userId, activeMonth, categorySlug);
+    if (categorySlug === null) {
+      await repo.updateProfile(session.userId, { default_budget_cents: null });
+    }
+
+    const state = await loadFullMonthState(repo, session.userId, activeMonth);
+    return NextResponse.json(state);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Erro ao remover teto.";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

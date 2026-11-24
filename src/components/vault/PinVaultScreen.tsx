@@ -137,13 +137,15 @@ export function PinVaultScreen({
   const keys = ["1", "2", "3", "4", "5", "6", "7", "8", "9"];
 
   return (
-    <main className="flex min-h-dvh flex-col items-center justify-center bg-[var(--bg-canvas)] px-6 py-10">
-      <div className="flex w-full max-w-xs flex-col items-center">
-        <div className="mb-6 flex h-12 w-12 items-center justify-center rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-1)]">
+    <main className="relative flex min-h-dvh flex-col items-center justify-center overflow-hidden bg-[var(--bg-canvas)] px-6 py-10">
+      <div className="dol-ambient-glow pointer-events-none fixed inset-x-0 top-0 h-80" />
+
+      <div className="relative z-10 flex w-full max-w-xs flex-col items-center">
+        <div className="dol-hero-gradient mb-5 flex h-14 w-14 items-center justify-center rounded-[20px] shadow-md">
           {needsPinSetup ? (
-            <ShieldCheck className="h-5 w-5 text-[var(--accent)]" />
+            <ShieldCheck className="h-6 w-6 text-[#111216]" />
           ) : (
-            <Lock className="h-5 w-5 text-[var(--text-primary)]" />
+            <Lock className="h-6 w-6 text-[#111216]" />
           )}
         </div>
 
@@ -164,14 +166,19 @@ export function PinVaultScreen({
               <motion.span
                 key={i}
                 animate={{
-                  scale: filled ? 1.15 : 1,
+                  scale: filled ? 1.18 : 1,
                 }}
                 transition={{ type: "spring", stiffness: 500, damping: 28 }}
-                className={`h-3.5 w-3.5 rounded-full border transition-colors ${
+                className={`h-3.5 w-3.5 rounded-full border transition-all ${
                   filled
-                    ? "border-[var(--accent)] bg-[var(--accent)]"
+                    ? "border-transparent shadow-[0_0_12px_rgba(234,242,149,0.45)]"
                     : "border-[var(--border-strong)] bg-transparent"
                 }`}
+                style={
+                  filled
+                    ? { background: "var(--grad-hero)" }
+                    : undefined
+                }
               />
             );
           })}
@@ -192,7 +199,7 @@ export function PinVaultScreen({
               whileTap={{ scale: 0.92 }}
               onClick={() => appendDigit(digit)}
               disabled={submitting || isLocked}
-              className="flex h-16 items-center justify-center rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-1)] font-mono text-xl font-medium text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-2)] disabled:opacity-40"
+              className="flex h-16 items-center justify-center rounded-[20px] border border-[var(--border-subtle)] bg-[var(--surface-1)] text-xl font-semibold tabular-nums text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-2)] disabled:opacity-40"
             >
               {digit}
             </motion.button>
@@ -205,7 +212,7 @@ export function PinVaultScreen({
             whileTap={{ scale: 0.92 }}
             onClick={() => appendDigit("0")}
             disabled={submitting || isLocked}
-            className="flex h-16 items-center justify-center rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-1)] font-mono text-xl font-medium text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-2)] disabled:opacity-40"
+            className="flex h-16 items-center justify-center rounded-[20px] border border-[var(--border-subtle)] bg-[var(--surface-1)] text-xl font-semibold tabular-nums text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-2)] disabled:opacity-40"
           >
             0
           </motion.button>
@@ -216,7 +223,7 @@ export function PinVaultScreen({
             onClick={removeDigit}
             disabled={submitting || pin.length === 0}
             aria-label="Apagar dígito"
-            className="flex h-16 items-center justify-center rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-1)] text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-2)] disabled:opacity-30"
+            className="flex h-16 items-center justify-center rounded-[20px] border border-[var(--border-subtle)] bg-[var(--surface-1)] text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-2)] disabled:opacity-30"
           >
             <Delete className="h-5 w-5" />
           </motion.button>

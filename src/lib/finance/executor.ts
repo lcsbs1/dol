@@ -18,6 +18,7 @@ import type {
   FutureMonthCommitment,
   InstallmentPlanRecord,
   MonthSummary,
+  MonthlyBudgetRecord,
   ProfileRecord,
   RecurringRuleRecord,
 } from "./types";
@@ -27,6 +28,7 @@ export interface FullMonthPayload {
   futureCommitments: FutureMonthCommitment[];
   recurringRules: RecurringRuleRecord[];
   installmentPlans: InstallmentPlanRecord[];
+  budgets: MonthlyBudgetRecord[];
   profile: ProfileRecord | null;
 }
 
@@ -66,6 +68,7 @@ export async function loadFullMonthState(
     futureCommitments,
     recurringRules,
     installmentPlans,
+    budgets,
     profile,
   };
 }

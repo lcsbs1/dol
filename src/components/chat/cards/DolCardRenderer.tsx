@@ -118,8 +118,8 @@ function TransactionBatchCard({
   onUndo: () => void;
 }) {
   return (
-    <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-1)] p-3">
-      <div className="space-y-1.5">
+    <div className="rounded-[24px] border border-[var(--border-subtle)] bg-[var(--surface-1)] p-3.5">
+      <div className="space-y-2">
         {payload.items.map((item) => {
           const meta = getCategoryMeta(item.category_slug);
           return (
@@ -130,54 +130,47 @@ function TransactionBatchCard({
                 triggerTactileFeedback("tap");
                 onSelectItem(item);
               }}
-              className="flex w-full items-center justify-between gap-3 rounded-xl px-2 py-2 text-left transition-colors hover:bg-[var(--surface-2)]"
+              className="flex w-full items-center justify-between gap-3 rounded-2xl bg-[var(--surface-2)] px-3.5 py-2.5 text-left transition-colors hover:bg-[var(--surface-3)]"
             >
               <div className="flex min-w-0 items-center gap-2.5">
                 <div
                   className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl"
-                  style={{ backgroundColor: `${meta.color}20` }}
+                  style={{ backgroundColor: `${meta.color}26` }}
                 >
                   <CategoryIcon name={meta.icon} color={meta.color} className="h-4 w-4" />
                 </div>
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-[var(--text-primary)]">
+                  <p className="truncate text-sm font-semibold text-[var(--text-primary)]">
                     {item.title}
                   </p>
-                  <p className="text-[11px] text-[var(--text-muted)]">{meta.label}</p>
+                  <p className="text-xs tabular-nums text-[var(--text-secondary)]">
+                    {item.kind === "income" ? "+" : ""}
+                    {formatBRL(item.amount_cents)} · {meta.label}
+                  </p>
                 </div>
               </div>
 
-              <div className="flex shrink-0 items-center gap-2">
-                <span
-                  className={`font-mono text-sm font-semibold tabular-nums ${
-                    item.kind === "income" ? "text-[var(--accent)]" : "text-[var(--text-primary)]"
-                  }`}
-                >
-                  {item.kind === "income" ? "+" : ""}
-                  {formatBRL(item.amount_cents)}
-                </span>
-                <Pencil className="h-3.5 w-3.5 text-[var(--text-muted)]" />
-              </div>
+              <Pencil className="h-3.5 w-3.5 shrink-0 text-[var(--text-muted)]" />
             </button>
           );
         })}
       </div>
 
-      <div className="mt-2 flex items-center justify-between border-t border-[var(--border-subtle)] pt-2 text-[11px]">
-        <span className="font-mono font-medium tabular-nums text-[var(--text-secondary)]">
-          Total {formatBRL(payload.total_cents)}
-        </span>
+      <div className="mt-3 flex items-center justify-between border-t border-[var(--border-subtle)] px-1 pt-2.5">
         <button
           type="button"
           onClick={() => {
             triggerTactileFeedback("tap");
             onUndo();
           }}
-          className="inline-flex items-center gap-1 font-medium text-[var(--text-muted)] transition-colors hover:text-[var(--text-primary)]"
+          className="inline-flex items-center gap-1.5 text-xs font-medium text-[var(--text-muted)] transition-colors hover:text-[var(--text-primary)]"
         >
-          <RotateCcw className="h-3 w-3" />
+          <RotateCcw className="h-3.5 w-3.5" />
           Desfazer
         </button>
+        <span className="text-sm font-semibold tabular-nums text-[var(--text-primary)]">
+          Total {formatBRL(payload.total_cents)}
+        </span>
       </div>
     </div>
   );
@@ -192,6 +185,7 @@ function InstallmentCard({
 }) {
   const meta = getCategoryMeta(payload.plan.category_slug);
   const firstTx = payload.installments[0];
+  const progressPct = Math.round((1 / Math.max(1, payload.plan.installment_count)) * 100);
 
   const handleTap = () => {
     if (!firstTx) return;
@@ -217,13 +211,13 @@ function InstallmentCard({
     <button
       type="button"
       onClick={handleTap}
-      className="w-full rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-1)] p-3.5 text-left transition-colors hover:bg-[var(--surface-2)]/60"
+      className="w-full rounded-[24px] border border-[var(--border-subtle)] bg-[var(--surface-1)] p-4 text-left transition-colors hover:bg-[var(--surface-2)]"
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-2.5">
           <div
-            className="flex h-9 w-9 items-center justify-center rounded-xl"
-            style={{ backgroundColor: `${meta.color}20` }}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl"
+            style={{ backgroundColor: `${meta.color}26` }}
           >
             <CategoryIcon name={meta.icon} color={meta.color} />
           </div>
@@ -231,32 +225,24 @@ function InstallmentCard({
             <p className="text-sm font-semibold text-[var(--text-primary)]">
               {payload.plan.title}
             </p>
-            <p className="text-[11px] text-[var(--text-muted)]">
-              {meta.label} · 1/{payload.plan.installment_count} neste mês
+            <p className="text-xs tabular-nums text-[var(--text-secondary)]">
+              {formatBRL(payload.plan.total_amount_cents)} em {payload.plan.installment_count}x ·{" "}
+              {formatBRL(payload.first_installment_cents)}/mês
             </p>
           </div>
         </div>
 
-        <div className="text-right">
-          <p className="font-mono text-sm font-semibold tabular-nums text-[var(--text-primary)]">
-            {formatBRL(payload.first_installment_cents)}/mês
-          </p>
-          <p className="font-mono text-[11px] tabular-nums text-[var(--text-muted)]">
-            Total {formatBRL(payload.plan.total_amount_cents)}
-          </p>
-        </div>
+        <span className="rounded-full bg-[var(--surface-2)] px-2.5 py-0.5 text-xs font-medium tabular-nums text-[var(--text-secondary)]">
+          1/{payload.plan.installment_count}
+        </span>
       </div>
 
-      {/* Barra segmentada de parcelas */}
-      <div className="mt-3 flex gap-1">
-        {Array.from({ length: Math.min(12, payload.plan.installment_count) }, (_, idx) => (
-          <span
-            key={idx}
-            className={`h-1.5 flex-1 rounded-full ${
-              idx === 0 ? "bg-[var(--accent)]" : "bg-[var(--surface-3)]"
-            }`}
-          />
-        ))}
+      {/* Barra contínua em gradiente pastel */}
+      <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-[var(--surface-2)]">
+        <div
+          className="dol-progress-gradient h-full rounded-full transition-all"
+          style={{ width: `${Math.max(8, progressPct)}%` }}
+        />
       </div>
     </button>
   );
@@ -295,18 +281,18 @@ function RecurringCard({
           created_at: rule.created_at,
         });
       }}
-      className="flex w-full items-center justify-between gap-3 rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-1)] p-3.5 text-left transition-colors hover:bg-[var(--surface-2)]/60"
+      className="flex w-full items-center justify-between gap-3 rounded-[24px] border border-[var(--border-subtle)] bg-[var(--surface-1)] p-4 text-left transition-colors hover:bg-[var(--surface-2)]"
     >
       <div className="flex items-center gap-2.5">
         <div
-          className="flex h-9 w-9 items-center justify-center rounded-xl"
-          style={{ backgroundColor: `${meta.color}20` }}
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl"
+          style={{ backgroundColor: `${meta.color}26` }}
         >
           <CategoryIcon name={meta.icon} color={meta.color} />
         </div>
         <div>
           <p className="text-sm font-semibold text-[var(--text-primary)]">{rule.title}</p>
-          <span className="inline-flex items-center gap-1 rounded-full bg-[var(--surface-2)] px-2 py-0.5 text-[10px] font-medium text-[var(--text-secondary)]">
+          <span className="mt-0.5 inline-flex items-center gap-1 rounded-full bg-[var(--surface-2)] px-2 py-0.5 text-[11px] font-medium text-[var(--text-secondary)]">
             <CalendarClock className="h-3 w-3" />
             Fixa · dia {rule.day_of_month}
           </span>
@@ -314,8 +300,8 @@ function RecurringCard({
       </div>
 
       <span
-        className={`font-mono text-sm font-semibold tabular-nums ${
-          rule.kind === "income" ? "text-[var(--accent)]" : "text-[var(--text-primary)]"
+        className={`text-sm font-semibold tabular-nums ${
+          rule.kind === "income" ? "text-[var(--accent-mint)]" : "text-[var(--text-primary)]"
         }`}
       >
         {rule.kind === "income" ? "+" : ""}
@@ -327,8 +313,9 @@ function RecurringCard({
 
 function BudgetCard({ payload }: { payload: DolCardPayloadMap["budget"] }) {
   const pct = Math.min(100, Math.round(payload.percent_used ?? 0));
+  const over = (payload.percent_used ?? 0) > 100;
   return (
-    <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-1)] p-3.5">
+    <div className="rounded-[24px] border border-[var(--border-subtle)] bg-[var(--surface-1)] p-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Target className="h-4 w-4 text-[var(--accent)]" />
@@ -338,21 +325,21 @@ function BudgetCard({ payload }: { payload: DolCardPayloadMap["budget"] }) {
               : "Teto mensal"}
           </span>
         </div>
-        <span className="font-mono text-sm font-semibold tabular-nums text-[var(--text-primary)]">
+        <span className="text-sm font-semibold tabular-nums text-[var(--text-primary)]">
           {formatBRL(payload.limit_cents)}
         </span>
       </div>
       {payload.percent_used !== null && (
-        <div className="mt-2.5">
-          <div className="h-2 w-full overflow-hidden rounded-full bg-[var(--surface-3)]">
+        <div className="mt-3">
+          <div className="h-2.5 w-full overflow-hidden rounded-full bg-[var(--surface-2)]">
             <div
               className={`h-full rounded-full transition-all ${
-                (payload.percent_used ?? 0) > 100 ? "bg-rose-500" : "bg-[var(--accent)]"
+                over ? "bg-rose-400" : "dol-progress-gradient"
               }`}
-              style={{ width: `${pct}%` }}
+              style={{ width: `${Math.max(6, pct)}%` }}
             />
           </div>
-          <p className="mt-1 font-mono text-[11px] tabular-nums text-[var(--text-muted)]">
+          <p className="mt-1.5 text-xs tabular-nums text-[var(--text-muted)]">
             {Math.round(payload.percent_used)}% utilizado
           </p>
         </div>
@@ -370,24 +357,24 @@ function SummaryVisualCard({
 }) {
   const { summary } = payload;
   return (
-    <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-1)] p-3.5">
+    <div className="rounded-[24px] border border-[var(--border-subtle)] bg-[var(--surface-1)] p-4">
       <div className="grid grid-cols-3 gap-2">
-        <div className="rounded-xl bg-[var(--surface-2)] p-2.5">
-          <p className="text-[10px] uppercase tracking-wider text-[var(--text-muted)]">Gastos</p>
-          <p className="mt-0.5 font-mono text-xs font-semibold tabular-nums text-[var(--text-primary)]">
+        <div className="rounded-2xl bg-[var(--surface-2)] p-2.5">
+          <p className="text-[11px] text-[var(--text-muted)]">Gastos</p>
+          <p className="mt-0.5 text-xs font-semibold tabular-nums text-[var(--text-primary)]">
             {formatBRL(summary.total_expense_cents)}
           </p>
         </div>
-        <div className="rounded-xl bg-[var(--surface-2)] p-2.5">
-          <p className="text-[10px] uppercase tracking-wider text-[var(--text-muted)]">Entradas</p>
-          <p className="mt-0.5 font-mono text-xs font-semibold tabular-nums text-[var(--accent)]">
+        <div className="rounded-2xl bg-[var(--surface-2)] p-2.5">
+          <p className="text-[11px] text-[var(--text-muted)]">Entradas</p>
+          <p className="mt-0.5 text-xs font-semibold tabular-nums text-[var(--accent)]">
             {formatBRL(summary.total_income_cents)}
           </p>
         </div>
-        <div className="rounded-xl bg-[var(--surface-2)] p-2.5">
-          <p className="text-[10px] uppercase tracking-wider text-[var(--text-muted)]">Saldo</p>
+        <div className="rounded-2xl bg-[var(--surface-2)] p-2.5">
+          <p className="text-[11px] text-[var(--text-muted)]">Saldo</p>
           <p
-            className={`mt-0.5 font-mono text-xs font-semibold tabular-nums ${
+            className={`mt-0.5 text-xs font-semibold tabular-nums ${
               summary.balance_cents < 0 ? "text-rose-400" : "text-[var(--text-primary)]"
             }`}
           >
@@ -397,7 +384,7 @@ function SummaryVisualCard({
       </div>
 
       {summary.slices.length > 0 && (
-        <div className="mt-3 space-y-2">
+        <div className="mt-3 space-y-2.5">
           {summary.slices.slice(0, 4).map((slice) => (
             <button
               key={slice.category_slug}
@@ -410,11 +397,11 @@ function SummaryVisualCard({
             >
               <div className="flex items-center justify-between text-xs">
                 <span className="font-medium text-[var(--text-primary)]">{slice.label}</span>
-                <span className="font-mono tabular-nums text-[var(--text-secondary)]">
+                <span className="tabular-nums text-[var(--text-secondary)]">
                   {formatBRL(slice.amount_cents)} · {Math.round(slice.percentage_of_expenses)}%
                 </span>
               </div>
-              <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-[var(--surface-3)]">
+              <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-[var(--surface-2)]">
                 <div
                   className="h-full rounded-full"
                   style={{
@@ -440,13 +427,13 @@ function CategoryDetailCard({
 }) {
   const meta = getCategoryMeta(payload.category_slug);
   return (
-    <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-1)] p-3.5">
+    <div className="rounded-[24px] border border-[var(--border-subtle)] bg-[var(--surface-1)] p-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <CategoryIcon name={meta.icon} color={meta.color} />
           <span className="text-sm font-semibold text-[var(--text-primary)]">{meta.label}</span>
         </div>
-        <div className="text-right font-mono tabular-nums">
+        <div className="text-right tabular-nums">
           <span className="text-sm font-semibold text-[var(--text-primary)]">
             {formatBRL(payload.total_cents)}
           </span>
@@ -466,10 +453,10 @@ function CategoryDetailCard({
                 triggerTactileFeedback("tap");
                 onSelectItem(item);
               }}
-              className="flex w-full items-center justify-between rounded-lg px-2 py-1.5 text-xs hover:bg-[var(--surface-2)]"
+              className="flex w-full items-center justify-between rounded-xl px-2.5 py-1.5 text-xs hover:bg-[var(--surface-2)]"
             >
               <span className="truncate text-[var(--text-secondary)]">{item.title}</span>
-              <span className="font-mono font-medium tabular-nums text-[var(--text-primary)]">
+              <span className="font-semibold tabular-nums text-[var(--text-primary)]">
                 {formatBRL(item.amount_cents)}
               </span>
             </button>
@@ -486,18 +473,18 @@ function InstallmentsTimelineCard({
   payload: DolCardPayloadMap["installments_timeline"];
 }) {
   return (
-    <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-1)] p-3.5">
+    <div className="rounded-[24px] border border-[var(--border-subtle)] bg-[var(--surface-1)] p-4">
       <div className="grid grid-cols-3 gap-2">
         {payload.future.slice(0, 6).map((m) => (
-          <div key={m.billing_month} className="rounded-xl bg-[var(--surface-2)] p-2">
-            <p className="text-[10px] font-medium uppercase tracking-wider text-[var(--text-muted)]">
+          <div key={m.billing_month} className="rounded-2xl bg-[var(--surface-2)] p-2.5">
+            <p className="text-[11px] font-medium text-[var(--text-muted)]">
               {formatMonthLabel(m.billing_month)}
             </p>
-            <p className="mt-0.5 font-mono text-xs font-semibold tabular-nums text-[var(--text-primary)]">
+            <p className="mt-0.5 text-xs font-semibold tabular-nums text-[var(--text-primary)]">
               {formatBRL(m.total_cents)}
             </p>
             {m.installment_cents > 0 && (
-              <p className="font-mono text-[10px] tabular-nums text-[var(--accent)]">
+              <p className="text-[11px] tabular-nums text-[var(--accent-lilac)]">
                 Parc. {formatBRL(m.installment_cents)}
               </p>
             )}
@@ -518,12 +505,12 @@ function FixedListCard({
   onSelectItem: (item: EffectiveMonthItem) => void;
 }) {
   return (
-    <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-1)] p-3.5">
+    <div className="rounded-[24px] border border-[var(--border-subtle)] bg-[var(--surface-1)] p-4">
       <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-2 text-xs">
         <span className="font-semibold text-[var(--text-primary)]">
           Fixas ({payload.rules.length})
         </span>
-        <span className="font-mono font-semibold tabular-nums text-[var(--text-primary)]">
+        <span className="font-semibold tabular-nums text-[var(--text-primary)]">
           {formatBRL(payload.total_fixed_expense_cents)}/mês
         </span>
       </div>
@@ -553,16 +540,16 @@ function FixedListCard({
                   created_at: rule.created_at,
                 });
               }}
-              className="flex w-full items-center justify-between rounded-xl px-2 py-1.5 text-xs hover:bg-[var(--surface-2)]"
+              className="flex w-full items-center justify-between rounded-xl px-2.5 py-2 text-xs hover:bg-[var(--surface-2)]"
             >
               <div className="flex items-center gap-2">
                 <CategoryIcon name={meta.icon} color={meta.color} className="h-3.5 w-3.5" />
-                <span className="text-[var(--text-primary)]">{rule.title}</span>
-                <span className="text-[10px] text-[var(--text-muted)]">dia {rule.day_of_month}</span>
+                <span className="font-medium text-[var(--text-primary)]">{rule.title}</span>
+                <span className="text-[11px] text-[var(--text-muted)]">dia {rule.day_of_month}</span>
               </div>
               <span
-                className={`font-mono font-semibold tabular-nums ${
-                  rule.kind === "income" ? "text-[var(--accent)]" : "text-[var(--text-primary)]"
+                className={`font-semibold tabular-nums ${
+                  rule.kind === "income" ? "text-[var(--accent-mint)]" : "text-[var(--text-primary)]"
                 }`}
               >
                 {rule.kind === "income" ? "+" : ""}
@@ -579,20 +566,20 @@ function FixedListCard({
 function ComparisonCard({ payload }: { payload: DolCardPayloadMap["comparison"] }) {
   const up = (payload.delta_percent ?? 0) > 0;
   return (
-    <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-1)] p-3.5">
+    <div className="rounded-[24px] border border-[var(--border-subtle)] bg-[var(--surface-1)] p-4">
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-[11px] text-[var(--text-muted)]">
+          <p className="text-xs text-[var(--text-muted)]">
             {formatMonthLabel(payload.previous_month)} → {formatMonthLabel(payload.current_month)}
           </p>
-          <p className="font-mono text-base font-semibold tabular-nums text-[var(--text-primary)]">
+          <p className="mt-0.5 text-base font-semibold tabular-nums text-[var(--text-primary)]">
             {formatBRL(payload.current_expense_cents)}
           </p>
         </div>
         {payload.delta_percent !== null && (
           <span
-            className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 font-mono text-xs font-semibold tabular-nums ${
-              up ? "bg-rose-500/15 text-rose-400" : "bg-emerald-500/15 text-emerald-400"
+            className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold tabular-nums ${
+              up ? "bg-rose-500/15 text-rose-400" : "bg-[#ACEFD6]/15 text-[#ACEFD6]"
             }`}
           >
             {up ? <ArrowUpRight className="h-3.5 w-3.5" /> : <ArrowDownRight className="h-3.5 w-3.5" />}
@@ -630,7 +617,7 @@ function ClarifyValueCard({
   return (
     <form
       onSubmit={submit}
-      className="flex items-center justify-between gap-2 rounded-2xl border border-[var(--border-strong)] bg-[var(--surface-1)] p-3"
+      className="flex items-center justify-between gap-2 rounded-[24px] border border-[var(--border-strong)] bg-[var(--surface-1)] p-3.5"
     >
       <div className="flex items-center gap-2">
         <CategoryIcon name={meta.icon} color={meta.color} />
@@ -646,13 +633,13 @@ function ClarifyValueCard({
           disabled={submitted}
           value={val}
           onChange={(e) => setVal(e.target.value)}
-          className="w-24 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-2)] px-2.5 py-1.5 font-mono text-xs tabular-nums text-[var(--text-primary)] focus:border-[var(--accent)] focus:outline-none"
+          className="w-24 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-2)] px-2.5 py-1.5 text-xs tabular-nums text-[var(--text-primary)] focus:border-[var(--accent-lilac)] focus:outline-none"
         />
         <button
           type="submit"
           disabled={submitted}
           aria-label="Confirmar valor"
-          className="flex h-8 w-8 items-center justify-center rounded-xl bg-[var(--accent)] text-white disabled:opacity-40"
+          className="flex h-8 w-8 items-center justify-center rounded-xl bg-[var(--accent)] text-[var(--accent-ink)] disabled:opacity-40"
         >
           <Check className="h-4 w-4" />
         </button>
@@ -682,7 +669,7 @@ function OffTopicGuardCard() {
       transition={{ duration: 0.35 }}
       className="inline-flex items-center gap-2 rounded-full border border-[var(--border-subtle)] bg-[var(--surface-1)] px-3.5 py-2 text-xs font-medium text-[var(--text-secondary)]"
     >
-      <ShieldAlert className="h-3.5 w-3.5 text-amber-400" />
+      <ShieldAlert className="h-3.5 w-3.5 text-[#F3EE9D]" />
       <span>dol · apenas finanças</span>
     </motion.div>
   );

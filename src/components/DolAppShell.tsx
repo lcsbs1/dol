@@ -1,15 +1,8 @@
 "use client";
 
-import {
-  ChevronLeft,
-  ChevronRight,
-  Lock,
-  Moon,
-  Sun,
-  Volume2,
-  VolumeX,
-} from "lucide-react";
+import { X } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
+import { EXPENSE_CATEGORIES } from "@/lib/finance/categories";
 import {
   addMonths,
   formatMonthLabel,
@@ -22,15 +15,27 @@ import type {
   EffectiveMonthItem,
   ExpenseCategorySlug,
   FutureMonthCommitment,
+  InstallmentPlanRecord,
   MonthSummary,
+  MonthlyBudgetRecord,
   ProfileRecord,
+  RecurringRuleRecord,
 } from "@/lib/finance/types";
 import { setTactileSoundEnabled, triggerTactileFeedback } from "@/lib/tactile";
 import { DolStream } from "./chat/DolStream";
 import { EditItemSheet } from "./chat/EditItemSheet";
 import { VoiceTextComposer } from "./composer/VoiceTextComposer";
-import { FinanceStage3D } from "./stage/FinanceStage3D";
+import {
+  DesktopSidebar,
+  MobileBottomDock,
+  MobileMenuDrawer,
+  type DolNavSection,
+} from "./navigation/DolNavigation";
 import { PinVaultScreen } from "./vault/PinVaultScreen";
+import { BudgetsView } from "./views/BudgetsView";
+import { CommitmentsView } from "./views/CommitmentsView";
+import { DashboardHomeView } from "./views/DashboardHomeView";
+import { TransactionsView } from "./views/TransactionsView";
 
 interface AuthStatusResponse {
   authenticated: boolean;
@@ -38,29 +43,52 @@ interface AuthStatusResponse {
   lockedUntil: string | null;
 }
 
-interface SummaryApiResponse {
+interface FullMonthPayloadResponse {
   summary: MonthSummary;
   futureCommitments: FutureMonthCommitment[];
+  recurringRules?: RecurringRuleRecord[];
+  installmentPlans?: InstallmentPlanRecord[];
+  budgets?: MonthlyBudgetRecord[];
   profile: ProfileRecord | null;
-  chatEvents: ChatEventRecord[];
+  chatEvents?: ChatEventRecord[];
+  event?: ChatEventRecord;
+  highlightCategory?: ExpenseCategorySlug | null;
 }
 
 export function DolAppShell() {
   const [authStatus, setAuthStatus] = useState<AuthStatusResponse | null>(null);
   const [activeMonth, setActiveMonth] = useState<string>(() => getCurrentBillingMonth());
+  const [activeSection, setActiveSection] = useState<DolNavSection>("inicio");
+
   const [summary, setSummary] = useState<MonthSummary | null>(null);
   const [future, setFuture] = useState<FutureMonthCommitment[]>([]);
+  const [recurringRules, setRecurringRules] = useState<RecurringRuleRecord[]>([]);
+  const [installmentPlans, setInstallmentPlans] = useState<InstallmentPlanRecord[]>([]);
+  const [budgets, setBudgets] = useState<MonthlyBudgetRecord[]>([]);
+  const [profile, setProfile] = useState<ProfileRecord | null>(null);
   const [events, setEvents] = useState<ChatEventRecord[]>([]);
+
   const [selectedCategory, setSelectedCategory] = useState<ExpenseCategorySlug | null>(null);
-  const [highlightedCategory, setHighlightedCategory] = useState<ExpenseCategorySlug | null>(null);
+  const [highlightedCategory, setHighlightedCategory] =
+    useState<ExpenseCategorySlug | null>(null);
   const [editingItem, setEditingItem] = useState<EffectiveMonthItem | null>(null);
   const [processing, setProcessing] = useState(false);
   const [errorToast, setErrorToast] = useState<string | null>(null);
 
   const [theme, setTheme] = useState<"dark" | "light">("dark");
   const [soundEnabled, setSoundEnabled] = useState(true);
+
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [desktopChatDrawer, setDesktopChatDrawer] = useState(false);
+  const [composerPrefill, setComposerPrefill] = useState<string | null>(null);
+  const [focusSearchTrigger, setFocusSearchTrigger] = useState(0);
+
   const [budgetModalOpen, setBudgetModalOpen] = useState(false);
+  const [budgetCategory, setBudgetCategory] = useState<ExpenseCategorySlug | null>(null);
   const [budgetInput, setBudgetInput] = useState("");
+
+  const [nameModalOpen, setNameModalOpen] = useState(false);
+  const [nameInput, setNameInput] = useState("");
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
@@ -70,26 +98,56 @@ export function DolAppShell() {
     setTactileSoundEnabled(soundEnabled);
   }, [soundEnabled]);
 
-  const loadMonth = useCallback(async (month: string) => {
-    const res = await fetch(`/api/summary?month=${encodeURIComponent(month)}`);
-    if (res.status === 401) {
-      setAuthStatus((prev) =>
-        prev ? { ...prev, authenticated: false } : { authenticated: false, needsPinSetup: false, lockedUntil: null }
-      );
-      return;
-    }
-    if (!res.ok) return;
-    const data = (await res.json()) as SummaryApiResponse;
+  const applyFullMonthState = useCallback((data: FullMonthPayloadResponse) => {
     setSummary(data.summary);
     setFuture(data.futureCommitments);
-    setEvents(data.chatEvents);
+    if (data.recurringRules) setRecurringRules(data.recurringRules);
+    if (data.installmentPlans) setInstallmentPlans(data.installmentPlans);
+    if (data.budgets) setBudgets(data.budgets);
+    if (data.chatEvents) setEvents(data.chatEvents);
     if (data.profile) {
-      if (data.profile.theme_preference === "light" || data.profile.theme_preference === "dark") {
+      setProfile(data.profile);
+      if (
+        data.profile.theme_preference === "light" ||
+        data.profile.theme_preference === "dark"
+      ) {
         setTheme(data.profile.theme_preference);
       }
       setSoundEnabled(data.profile.sound_enabled);
     }
+    if (data.event) {
+      setEvents((prev) => [...prev, data.event!]);
+      if (data.event.card_type === "off_topic") {
+        triggerTactileFeedback("guardrail");
+      } else if (data.event.card_type === "undo") {
+        triggerTactileFeedback("undo");
+      } else {
+        triggerTactileFeedback("confirm");
+      }
+    }
+    if (data.highlightCategory) {
+      setHighlightedCategory(data.highlightCategory);
+      setTimeout(() => setHighlightedCategory(null), 2200);
+    }
   }, []);
+
+  const loadMonth = useCallback(
+    async (month: string) => {
+      const res = await fetch(`/api/summary?month=${encodeURIComponent(month)}`);
+      if (res.status === 401) {
+        setAuthStatus((prev) =>
+          prev
+            ? { ...prev, authenticated: false }
+            : { authenticated: false, needsPinSetup: false, lockedUntil: null }
+        );
+        return;
+      }
+      if (!res.ok) return;
+      const data = (await res.json()) as FullMonthPayloadResponse;
+      applyFullMonthState(data);
+    },
+    [applyFullMonthState]
+  );
 
   const checkAuthAndLoad = useCallback(async () => {
     const res = await fetch("/api/auth/status");
@@ -116,30 +174,6 @@ export function DolAppShell() {
     setTimeout(() => setErrorToast(null), 4000);
   };
 
-  const applyServerState = (data: {
-    summary: MonthSummary;
-    futureCommitments: FutureMonthCommitment[];
-    event?: ChatEventRecord;
-    highlightCategory?: ExpenseCategorySlug | null;
-  }) => {
-    setSummary(data.summary);
-    setFuture(data.futureCommitments);
-    if (data.event) {
-      setEvents((prev) => [...prev, data.event!]);
-      if (data.event.card_type === "off_topic") {
-        triggerTactileFeedback("guardrail");
-      } else if (data.event.card_type === "undo") {
-        triggerTactileFeedback("undo");
-      } else {
-        triggerTactileFeedback("confirm");
-      }
-    }
-    if (data.highlightCategory) {
-      setHighlightedCategory(data.highlightCategory);
-      setTimeout(() => setHighlightedCategory(null), 2200);
-    }
-  };
-
   const handleSendText = async (text: string) => {
     setProcessing(true);
     try {
@@ -151,13 +185,13 @@ export function DolAppShell() {
         },
         body: JSON.stringify({ text, activeMonth }),
       });
-      const data = await res.json();
+      const data = (await res.json()) as FullMonthPayloadResponse & { error?: string };
       if (!res.ok) {
         triggerTactileFeedback("guardrail");
         showToast(data.error ?? "Erro ao processar.");
         return;
       }
-      applyServerState(data);
+      applyFullMonthState(data);
     } catch {
       showToast("Falha de rede.");
     } finally {
@@ -179,13 +213,13 @@ export function DolAppShell() {
         },
         body: form,
       });
-      const data = await res.json();
+      const data = (await res.json()) as FullMonthPayloadResponse & { error?: string };
       if (!res.ok) {
         triggerTactileFeedback("guardrail");
         showToast(data.error ?? "Erro ao processar áudio.");
         return;
       }
-      applyServerState(data);
+      applyFullMonthState(data);
     } catch {
       showToast("Falha ao enviar áudio.");
     } finally {
@@ -213,10 +247,9 @@ export function DolAppShell() {
         activeMonth,
       }),
     });
-    const data = await res.json();
+    const data = (await res.json()) as FullMonthPayloadResponse & { error?: string };
     if (!res.ok) throw new Error(data.error ?? "Erro ao salvar.");
-    setSummary(data.summary);
-    setFuture(data.futureCommitments);
+    applyFullMonthState(data);
   };
 
   const handleDeleteEdit = async (
@@ -230,10 +263,9 @@ export function DolAppShell() {
         headers: { "X-Dol-Request": "1" },
       }
     );
-    const data = await res.json();
+    const data = (await res.json()) as FullMonthPayloadResponse & { error?: string };
     if (!res.ok) throw new Error(data.error ?? "Erro ao remover.");
-    setSummary(data.summary);
-    setFuture(data.futureCommitments);
+    applyFullMonthState(data);
   };
 
   const toggleTheme = async () => {
@@ -261,11 +293,35 @@ export function DolAppShell() {
 
   const handleLock = async () => {
     triggerTactileFeedback("tap");
+    setMobileMenuOpen(false);
     await fetch("/api/auth/lock", {
       method: "POST",
       headers: { "X-Dol-Request": "1" },
     });
     setAuthStatus({ authenticated: false, needsPinSetup: false, lockedUntil: null });
+  };
+
+  const openBudgetModal = (categorySlug: ExpenseCategorySlug | null = null) => {
+    setBudgetCategory(categorySlug);
+    const existing =
+      categorySlug === null
+        ? summary?.budget_cents ?? null
+        : budgets.find((b) => b.category_slug === categorySlug)?.limit_cents ?? null;
+    setBudgetInput(
+      existing ? (existing / 100).toFixed(2).replace(".", ",") : ""
+    );
+    setBudgetModalOpen(true);
+  };
+
+  const handleSelectBudgetCategoryInModal = (nextCategory: ExpenseCategorySlug | null) => {
+    setBudgetCategory(nextCategory);
+    const existing =
+      nextCategory === null
+        ? summary?.budget_cents ?? null
+        : budgets.find((b) => b.category_slug === nextCategory)?.limit_cents ?? null;
+    setBudgetInput(
+      existing ? (existing / 100).toFixed(2).replace(".", ",") : ""
+    );
   };
 
   const handleSaveBudgetModal = async (e: React.FormEvent) => {
@@ -278,16 +334,87 @@ export function DolAppShell() {
     const res = await fetch("/api/budget", {
       method: "PUT",
       headers: { "Content-Type": "application/json", "X-Dol-Request": "1" },
-      body: JSON.stringify({ billing_month: activeMonth, limit_cents: cents }),
+      body: JSON.stringify({
+        billing_month: activeMonth,
+        category_slug: budgetCategory,
+        limit_cents: cents,
+      }),
     });
     if (res.ok) {
-      const data = await res.json();
-      setSummary(data.summary);
-      setFuture(data.futureCommitments);
+      const data = (await res.json()) as FullMonthPayloadResponse;
+      applyFullMonthState(data);
       triggerTactileFeedback("confirm");
       setBudgetModalOpen(false);
     }
   };
+
+  const handleDeleteBudget = async (categorySlug: CategorySlug | null) => {
+    const query = new URLSearchParams({ month: activeMonth });
+    if (categorySlug) query.set("category", categorySlug);
+
+    const res = await fetch(`/api/budget?${query.toString()}`, {
+      method: "DELETE",
+      headers: { "X-Dol-Request": "1" },
+    });
+    if (res.ok) {
+      const data = (await res.json()) as FullMonthPayloadResponse;
+      applyFullMonthState(data);
+      triggerTactileFeedback("undo");
+      setBudgetModalOpen(false);
+    }
+  };
+
+  const handleSaveNameModal = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmed = nameInput.trim();
+    if (!trimmed) {
+      triggerTactileFeedback("guardrail");
+      return;
+    }
+    const res = await fetch("/api/budget", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", "X-Dol-Request": "1" },
+      body: JSON.stringify({ billing_month: activeMonth, display_name: trimmed }),
+    });
+    if (res.ok) {
+      const data = (await res.json()) as FullMonthPayloadResponse;
+      applyFullMonthState(data);
+      triggerTactileFeedback("confirm");
+      setNameModalOpen(false);
+    }
+  };
+
+  const handleOpenChatWithPrefill = (prefill?: string) => {
+    if (prefill !== undefined) {
+      setComposerPrefill(prefill);
+    }
+    if (typeof window !== "undefined" && window.innerWidth >= 1024) {
+      if (activeSection !== "inicio") {
+        setDesktopChatDrawer(true);
+      }
+    } else {
+      setActiveSection("chat");
+    }
+  };
+
+  const handleOpenSearch = () => {
+    setActiveSection("transacoes");
+    setFocusSearchTrigger((n) => n + 1);
+  };
+
+  const handleChangeMonth = (offset: number) => {
+    setActiveMonth((m) => addMonths(m, offset));
+  };
+
+  const displayName =
+    profile?.display_name && profile.display_name !== "Pessoal"
+      ? profile.display_name
+      : "Lucas";
+
+  const hasBudgetForModalCategory =
+    budgetCategory === null
+      ? Boolean(summary?.budget_cents)
+      : budgets.some((b) => b.category_slug === budgetCategory);
 
   if (!authStatus) {
     return (
@@ -310,119 +437,194 @@ export function DolAppShell() {
     );
   }
 
+  const desktopEffectiveSection =
+    activeSection === "chat" ? "inicio" : activeSection;
+  const showDesktopRightColumn = desktopEffectiveSection === "inicio";
+
   return (
-    <div className="flex h-dvh flex-col bg-[var(--bg-canvas)] text-[var(--text-primary)]">
-      {/* Top Bar */}
-      <header className="flex shrink-0 items-center justify-between border-b border-[var(--border-subtle)] bg-[var(--surface-1)]/80 px-3.5 py-2.5 backdrop-blur-md sm:px-5">
-        <div className="flex items-center gap-2.5">
-          <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-[var(--accent)] font-mono text-sm font-bold tracking-tight text-white">
-            dol
-          </span>
-
-          <div className="flex items-center gap-1 rounded-full border border-[var(--border-subtle)] bg-[var(--surface-2)] px-1.5 py-0.5">
-            <button
-              type="button"
-              aria-label="Mês anterior"
-              onClick={() => {
-                triggerTactileFeedback("tap");
-                setActiveMonth((m) => addMonths(m, -1));
-              }}
-              className="flex h-6 w-6 items-center justify-center rounded-full text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-            >
-              <ChevronLeft className="h-3.5 w-3.5" />
-            </button>
-            <span className="min-w-20 text-center text-xs font-semibold capitalize text-[var(--text-primary)]">
-              {formatMonthLabel(activeMonth)}
-            </span>
-            <button
-              type="button"
-              aria-label="Próximo mês"
-              onClick={() => {
-                triggerTactileFeedback("tap");
-                setActiveMonth((m) => addMonths(m, 1));
-              }}
-              className="flex h-6 w-6 items-center justify-center rounded-full text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-            >
-              <ChevronRight className="h-3.5 w-3.5" />
-            </button>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-1.5">
-          <button
-            type="button"
-            onClick={() => void toggleSound()}
-            aria-label={soundEnabled ? "Silenciar som tátil" : "Ativar som tátil"}
-            className="flex h-8 w-8 items-center justify-center rounded-full border border-[var(--border-subtle)] bg-[var(--surface-2)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-          >
-            {soundEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
-          </button>
-
-          <button
-            type="button"
-            onClick={() => void toggleTheme()}
-            aria-label="Alternar tema"
-            className="flex h-8 w-8 items-center justify-center rounded-full border border-[var(--border-subtle)] bg-[var(--surface-2)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-          >
-            {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-          </button>
-
-          <button
-            type="button"
-            onClick={() => void handleLock()}
-            aria-label="Bloquear cofre"
-            className="flex h-8 w-8 items-center justify-center rounded-full border border-[var(--border-subtle)] bg-[var(--surface-2)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-          >
-            <Lock className="h-4 w-4" />
-          </button>
-        </div>
-      </header>
+    <div className="relative flex h-dvh flex-col overflow-hidden bg-[var(--bg-canvas)] text-[var(--text-primary)]">
+      {/* Glow suave pastel superior */}
+      <div className="dol-ambient-glow pointer-events-none fixed inset-x-0 top-0 z-0 h-80" />
 
       {errorToast && (
-        <div className="mx-auto mt-2 rounded-full border border-rose-500/30 bg-rose-500/15 px-4 py-1.5 text-xs font-medium text-rose-400">
+        <div className="fixed left-1/2 top-4 z-50 -translate-x-1/2 rounded-full border border-rose-500/30 bg-rose-500/15 px-4 py-1.5 text-xs font-medium text-rose-400 backdrop-blur-md">
           {errorToast}
         </div>
       )}
 
-      {/* Modelo A Responsivo: Palco 3D Vivo + Stream dol */}
-      <div className="mx-auto flex min-h-0 w-full max-w-6xl flex-1 flex-col gap-3 p-3 lg:grid lg:grid-cols-12 lg:gap-4 lg:p-4">
-        <div className="shrink-0 lg:col-span-5 lg:min-h-0">
-          {summary && (
-            <FinanceStage3D
-              summary={summary}
-              future={future}
-              selectedCategory={selectedCategory}
-              highlightedCategory={highlightedCategory}
-              onSelectCategory={setSelectedCategory}
-              onOpenBudgetPrompt={() => {
-                setBudgetInput(
-                  summary.budget_cents
-                    ? (summary.budget_cents / 100).toFixed(2).replace(".", ",")
-                    : ""
-                );
-                setBudgetModalOpen(true);
-              }}
-              isDark={theme === "dark"}
-            />
-          )}
-        </div>
+      {/* Workspace Principal (Desktop 2 ou 3 colunas / Mobile tela única fluida) */}
+      <div className="relative z-10 mx-auto flex min-h-0 w-full max-w-[1440px] flex-1 gap-4 lg:p-5">
+        <DesktopSidebar
+          activeSection={desktopEffectiveSection}
+          onSelect={(section) => {
+            setDesktopChatDrawer(false);
+            setActiveSection(section);
+          }}
+          soundEnabled={soundEnabled}
+          onToggleSound={() => void toggleSound()}
+          theme={theme}
+          onToggleTheme={() => void toggleTheme()}
+          onLock={() => void handleLock()}
+        />
 
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-3xl border border-[var(--border-subtle)] bg-[var(--surface-1)]/50 lg:col-span-7">
+        {/* Área Central Dinâmica */}
+        <main className="flex min-h-0 min-w-0 flex-1 flex-col">
+          {!summary ? (
+            <div className="flex flex-1 items-center justify-center">
+              <div className="h-7 w-7 animate-spin rounded-full border-2 border-[var(--border-strong)] border-t-[var(--accent)]" />
+            </div>
+          ) : (
+            <>
+              {(activeSection === "inicio" || activeSection === "chat") && (
+                <div
+                  className={
+                    activeSection === "chat"
+                      ? "hidden min-h-0 flex-1 flex-col lg:flex"
+                      : "flex min-h-0 flex-1 flex-col"
+                  }
+                >
+                  <DashboardHomeView
+                    summary={summary}
+                    activeMonth={activeMonth}
+                    onChangeMonth={handleChangeMonth}
+                    displayName={displayName}
+                    selectedCategory={selectedCategory}
+                    highlightedCategory={highlightedCategory}
+                    onSelectCategory={setSelectedCategory}
+                    onOpenBudgetPrompt={openBudgetModal}
+                    onOpenChatWithPrefill={handleOpenChatWithPrefill}
+                    onNavigate={(s) => setActiveSection(s)}
+                    onOpenSearch={handleOpenSearch}
+                    onOpenMenu={() => setMobileMenuOpen(true)}
+                    onOpenNameModal={() => {
+                      setNameInput(displayName);
+                      setNameModalOpen(true);
+                    }}
+                    isDark={theme === "dark"}
+                  />
+                </div>
+              )}
+
+              {activeSection === "transacoes" && (
+                <TransactionsView
+                  summary={summary}
+                  activeMonth={activeMonth}
+                  onChangeMonth={handleChangeMonth}
+                  focusSearchTrigger={focusSearchTrigger}
+                  selectedCategory={selectedCategory}
+                  onSelectCategory={setSelectedCategory}
+                  onSelectItem={setEditingItem}
+                  onOpenChatWithPrefill={handleOpenChatWithPrefill}
+                  onOpenMenu={() => setMobileMenuOpen(true)}
+                />
+              )}
+
+              {(activeSection === "parcelas" || activeSection === "fixas") && (
+                <CommitmentsView
+                  mode={activeSection === "fixas" ? "fixas" : "parcelas"}
+                  activeMonth={activeMonth}
+                  onChangeMonth={handleChangeMonth}
+                  future={future}
+                  recurringRules={recurringRules}
+                  installmentPlans={installmentPlans}
+                  monthItems={summary.items}
+                  onSelectItem={setEditingItem}
+                  onOpenChatWithPrefill={handleOpenChatWithPrefill}
+                  onOpenSearch={handleOpenSearch}
+                  onOpenMenu={() => setMobileMenuOpen(true)}
+                  isDark={theme === "dark"}
+                />
+              )}
+
+              {activeSection === "tetos" && (
+                <BudgetsView
+                  summary={summary}
+                  budgets={budgets}
+                  activeMonth={activeMonth}
+                  onChangeMonth={handleChangeMonth}
+                  onOpenBudgetPrompt={openBudgetModal}
+                  onDeleteBudget={handleDeleteBudget}
+                  onOpenSearch={handleOpenSearch}
+                  onOpenMenu={() => setMobileMenuOpen(true)}
+                />
+              )}
+            </>
+          )}
+        </main>
+
+        {/* Coluna Chat / Composer (fixa na direita em Início no Desktop, fullscreen no Mobile Chat, ou drawer em outras abas Desktop) */}
+        <aside
+          className={`${
+            activeSection === "chat"
+              ? "fixed inset-0 z-30 flex flex-col bg-[var(--bg-canvas)] lg:static lg:inset-auto lg:z-auto"
+              : desktopChatDrawer
+                ? "hidden lg:fixed lg:bottom-5 lg:right-5 lg:top-5 lg:z-40 lg:flex lg:shadow-2xl"
+                : showDesktopRightColumn
+                  ? "hidden lg:flex"
+                  : "hidden"
+          } min-h-0 shrink-0 flex-col overflow-hidden lg:w-[350px] lg:rounded-[28px] lg:border lg:border-[var(--border-subtle)] lg:bg-[var(--surface-1)] xl:w-[390px]`}
+        >
+          {desktopChatDrawer && (
+            <button
+              type="button"
+              onClick={() => setDesktopChatDrawer(false)}
+              aria-label="Fechar painel de voz"
+              className="absolute right-3.5 top-3.5 z-10 hidden h-7 w-7 items-center justify-center rounded-full bg-[var(--surface-2)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] lg:flex"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
+
           <DolStream
             events={events}
             processing={processing}
             onSelectItem={setEditingItem}
-            onSelectCategory={setSelectedCategory}
+            onSelectCategory={(slug) => {
+              setSelectedCategory(slug);
+              if (activeSection === "chat") {
+                setActiveSection("inicio");
+              }
+            }}
             onQuickPrompt={(p) => void handleSendText(p)}
+            onBack={
+              activeSection === "chat"
+                ? () => setActiveSection("inicio")
+                : undefined
+            }
           />
 
           <VoiceTextComposer
             busy={processing}
             onSendText={handleSendText}
             onSendAudio={handleSendAudio}
+            prefillText={composerPrefill}
+            onConsumePrefill={() => setComposerPrefill(null)}
           />
-        </div>
+        </aside>
       </div>
+
+      {/* Navegação Inferior & Gaveta Mobile */}
+      <MobileBottomDock
+        activeSection={activeSection}
+        onSelect={setActiveSection}
+      />
+
+      <MobileMenuDrawer
+        open={mobileMenuOpen}
+        onClose={() => setMobileMenuOpen(false)}
+        activeSection={activeSection}
+        onSelect={setActiveSection}
+        displayName={displayName}
+        onOpenNameModal={() => {
+          setNameInput(displayName);
+          setNameModalOpen(true);
+        }}
+        soundEnabled={soundEnabled}
+        onToggleSound={() => void toggleSound()}
+        theme={theme}
+        onToggleTheme={() => void toggleTheme()}
+        onLock={() => void handleLock()}
+      />
 
       {/* Sheet de edição de card */}
       <EditItemSheet
@@ -433,38 +635,127 @@ export function DolAppShell() {
         onDelete={handleDeleteEdit}
       />
 
-      {/* Popover rápido de teto mensal */}
+      {/* Modal de Teto (Geral ou por Categoria) */}
       {budgetModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 p-4 backdrop-blur-xs">
           <form
             onSubmit={(e) => void handleSaveBudgetModal(e)}
-            className="w-full max-w-xs rounded-3xl border border-[var(--border-subtle)] bg-[var(--surface-1)] p-5"
+            className="w-full max-w-sm rounded-[28px] border border-[var(--border-subtle)] bg-[var(--surface-1)] p-5"
           >
-            <h2 className="text-base font-semibold text-[var(--text-primary)]">
-              Teto de {formatMonthLabel(activeMonth)}
-            </h2>
+            <div className="flex items-center justify-between">
+              <h2 className="text-base font-semibold text-[var(--text-primary)]">
+                Teto de {formatMonthLabel(activeMonth)}
+              </h2>
+              <button
+                type="button"
+                onClick={() => setBudgetModalOpen(false)}
+                aria-label="Fechar modal"
+                className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--surface-2)] text-[var(--text-secondary)]"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <label className="mt-4 mb-1.5 block text-xs font-medium text-[var(--text-secondary)]">
+              Categoria do teto
+            </label>
+            <select
+              value={budgetCategory ?? "__all__"}
+              onChange={(e) =>
+                handleSelectBudgetCategoryInModal(
+                  e.target.value === "__all__"
+                    ? null
+                    : (e.target.value as ExpenseCategorySlug)
+                )
+              }
+              className="w-full rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-2)] px-3.5 py-2.5 text-sm text-[var(--text-primary)] focus:border-[var(--accent-lilac)] focus:outline-none"
+            >
+              <option value="__all__">Geral do mês</option>
+              {Object.values(EXPENSE_CATEGORIES).map((cat) => (
+                <option key={cat.slug} value={cat.slug}>
+                  {cat.label}
+                </option>
+              ))}
+            </select>
+
+            <label className="mt-3.5 mb-1.5 block text-xs font-medium text-[var(--text-secondary)]">
+              Limite (R$)
+            </label>
             <input
               type="text"
               inputMode="decimal"
               autoFocus
-              placeholder="Ex: 4000,00"
+              placeholder="Ex: 1000,00"
               value={budgetInput}
               onChange={(e) => setBudgetInput(e.target.value)}
-              className="mt-3 w-full rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-2)] px-3.5 py-2.5 font-mono text-base tabular-nums text-[var(--text-primary)] focus:border-[var(--accent)] focus:outline-none"
+              className="w-full rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-2)] px-3.5 py-2.5 text-base font-semibold tabular-nums text-[var(--text-primary)] focus:border-[var(--accent-lilac)] focus:outline-none"
+            />
+
+            <div className="mt-5 flex items-center justify-between gap-2">
+              {hasBudgetForModalCategory ? (
+                <button
+                  type="button"
+                  onClick={() => void handleDeleteBudget(budgetCategory)}
+                  className="rounded-2xl px-3 py-2 text-xs font-medium text-rose-400 hover:bg-rose-500/10"
+                >
+                  Remover teto
+                </button>
+              ) : (
+                <span />
+              )}
+
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setBudgetModalOpen(false)}
+                  className="rounded-2xl px-3.5 py-2 text-xs font-medium text-[var(--text-secondary)]"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="rounded-2xl bg-[var(--accent)] px-4 py-2 text-xs font-semibold text-[var(--accent-ink)]"
+                >
+                  Salvar teto
+                </button>
+              </div>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Modal rápido de nome de perfil */}
+      {nameModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 p-4 backdrop-blur-xs">
+          <form
+            onSubmit={(e) => void handleSaveNameModal(e)}
+            className="w-full max-w-xs rounded-[28px] border border-[var(--border-subtle)] bg-[var(--surface-1)] p-5"
+          >
+            <h2 className="text-base font-semibold text-[var(--text-primary)]">
+              Como deseja ser chamado?
+            </h2>
+            <input
+              type="text"
+              autoFocus
+              maxLength={40}
+              placeholder="Ex: Lucas"
+              value={nameInput}
+              onChange={(e) => setNameInput(e.target.value)}
+              className="mt-3 w-full rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-2)] px-3.5 py-2.5 text-sm text-[var(--text-primary)] focus:border-[var(--accent-lilac)] focus:outline-none"
             />
             <div className="mt-4 flex justify-end gap-2">
               <button
                 type="button"
-                onClick={() => setBudgetModalOpen(false)}
-                className="rounded-xl px-3.5 py-2 text-xs font-medium text-[var(--text-secondary)]"
+                onClick={() => setNameModalOpen(false)}
+                className="rounded-2xl px-3.5 py-2 text-xs font-medium text-[var(--text-secondary)]"
               >
                 Cancelar
               </button>
               <button
                 type="submit"
-                className="rounded-xl bg-[var(--accent)] px-4 py-2 text-xs font-semibold text-white"
+                className="rounded-2xl bg-[var(--accent)] px-4 py-2 text-xs font-semibold text-[var(--accent-ink)]"
               >
-                Salvar teto
+                Salvar
               </button>
             </div>
           </form>

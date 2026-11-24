@@ -1,6 +1,6 @@
 "use client";
 
-import { formatMonthLabel } from "@/lib/finance/money";
+import { formatMonthShortName } from "@/lib/finance/money";
 import type { CategorySlice, ExpenseCategorySlug, FutureMonthCommitment } from "@/lib/finance/types";
 
 export function FallbackDonut2D({
@@ -88,23 +88,23 @@ export function FallbackCommitments2D({
             className="flex flex-col items-center gap-1.5"
           >
             <div
-              className={`flex w-8 flex-col justify-end gap-0.5 rounded-t-md transition-transform ${
-                active ? "scale-105" : "opacity-85 hover:opacity-100"
+              className={`flex w-9 flex-col justify-end gap-0.5 rounded-t-lg transition-transform ${
+                active ? "scale-105" : "opacity-90 hover:opacity-100"
               }`}
             >
               {instH > 0 && (
                 <div
-                  className="w-full rounded-sm bg-emerald-500"
+                  className="w-full rounded-sm border border-black/5 bg-[#D5C2FA]"
                   style={{ height: Math.max(4, instH) }}
                 />
               )}
               <div
-                className="w-full rounded-sm bg-slate-500/70"
+                className="w-full rounded-sm border border-black/5 bg-[#EAF295]"
                 style={{ height: Math.max(6, fixedH) }}
               />
             </div>
-            <span className="text-[10px] font-medium uppercase tracking-wider text-[var(--text-muted)]">
-              {formatMonthLabel(m.billing_month).slice(0, 3)}
+            <span className="text-[11px] font-medium text-[var(--text-muted)]">
+              {formatMonthShortName(m.billing_month)}
             </span>
           </button>
         );

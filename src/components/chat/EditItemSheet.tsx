@@ -130,13 +130,13 @@ export function EditItemSheet({
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: 48, opacity: 0 }}
           transition={{ type: "spring", stiffness: 380, damping: 32 }}
-          className="relative z-10 w-full max-w-md rounded-t-3xl border border-[var(--border-subtle)] bg-[var(--surface-1)] p-5 pb-7 sm:rounded-3xl sm:pb-5"
+          className="relative z-10 w-full max-w-md rounded-t-[28px] border border-[var(--border-subtle)] bg-[var(--surface-1)] p-5 pb-7 sm:rounded-[28px] sm:pb-5"
         >
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2.5">
               <div
-                className="flex h-9 w-9 items-center justify-center rounded-xl"
-                style={{ backgroundColor: `${meta.color}22` }}
+                className="flex h-10 w-10 items-center justify-center rounded-2xl"
+                style={{ backgroundColor: `${meta.color}26` }}
               >
                 <CategoryIcon name={meta.icon} color={meta.color} />
               </div>
@@ -145,7 +145,7 @@ export function EditItemSheet({
                   Editar lançamento
                 </h2>
                 {isInstallment && (
-                  <p className="font-mono text-[11px] text-[var(--text-muted)]">
+                  <p className="text-[11px] tabular-nums text-[var(--text-muted)]">
                     Parcela {item.installment_number}/{item.installment_total}
                   </p>
                 )}
@@ -156,7 +156,7 @@ export function EditItemSheet({
               type="button"
               onClick={onClose}
               aria-label="Fechar edição"
-              className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--surface-2)] text-[var(--text-secondary)]"
+              className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--surface-2)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
             >
               <X className="h-4 w-4" />
             </button>
@@ -172,7 +172,7 @@ export function EditItemSheet({
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 maxLength={80}
-                className="w-full rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-2)] px-3.5 py-2.5 text-sm text-[var(--text-primary)] focus:border-[var(--accent)] focus:outline-none"
+                className="w-full rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-2)] px-3.5 py-2.5 text-sm text-[var(--text-primary)] focus:border-[var(--accent-lilac)] focus:outline-none"
               />
             </div>
 
@@ -185,7 +185,7 @@ export function EditItemSheet({
                 inputMode="decimal"
                 value={amountInput}
                 onChange={(e) => setAmountInput(e.target.value)}
-                className="w-full rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-2)] px-3.5 py-2.5 font-mono text-base font-semibold tabular-nums text-[var(--text-primary)] focus:border-[var(--accent)] focus:outline-none"
+                className="w-full rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-2)] px-3.5 py-2.5 text-base font-semibold tabular-nums text-[var(--text-primary)] focus:border-[var(--accent-lilac)] focus:outline-none"
               />
             </div>
 
@@ -204,7 +204,7 @@ export function EditItemSheet({
                         triggerTactileFeedback("tap");
                         setCategorySlug(cat.slug);
                       }}
-                      className={`flex items-center gap-1.5 rounded-xl border px-2.5 py-2 text-left text-xs font-medium transition-colors ${
+                      className={`flex items-center gap-1.5 rounded-2xl border px-2.5 py-2 text-left text-xs font-medium transition-colors ${
                         selected
                           ? "border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--text-primary)]"
                           : "border-[var(--border-subtle)] bg-[var(--surface-2)]/60 text-[var(--text-secondary)]"
@@ -219,12 +219,12 @@ export function EditItemSheet({
             </div>
 
             {isRecurring && (
-              <label className="flex items-center gap-2.5 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-2)]/50 px-3 py-2 text-xs text-[var(--text-secondary)]">
+              <label className="flex items-center gap-2.5 rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-2)]/50 px-3 py-2 text-xs text-[var(--text-secondary)]">
                 <input
                   type="checkbox"
                   checked={applyToRule}
                   onChange={(e) => setApplyToRule(e.target.checked)}
-                  className="h-4 w-4 rounded accent-emerald-500"
+                  className="h-4 w-4 rounded accent-[#D5C2FA]"
                 />
                 <span>Alterar para todos os próximos meses (regra fixa)</span>
               </label>
@@ -237,7 +237,7 @@ export function EditItemSheet({
             <button
               type="submit"
               disabled={saving}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--accent)] px-4 py-3 text-sm font-semibold text-white transition-opacity hover:opacity-95 disabled:opacity-50"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-[var(--accent)] px-4 py-3 text-sm font-semibold text-[var(--accent-ink)] transition-opacity hover:opacity-95 disabled:opacity-50"
             >
               <Check className="h-4 w-4" />
               Salvar alterações

@@ -21,8 +21,8 @@ interface SliceGeometrySpec {
 }
 
 function buildRingSliceGeometry(startAngle: number, endAngle: number): THREE.ExtrudeGeometry {
-  const innerRadius = 1.05;
-  const outerRadius = 1.88;
+  const innerRadius = 1.12;
+  const outerRadius = 1.86;
   const shape = new THREE.Shape();
 
   shape.absarc(0, 0, outerRadius, startAngle, endAngle, false);
@@ -31,15 +31,15 @@ function buildRingSliceGeometry(startAngle: number, endAngle: number): THREE.Ext
   shape.closePath();
 
   const rawGeo = new THREE.ExtrudeGeometry(shape, {
-    depth: 0.42,
+    depth: 0.36,
     bevelEnabled: true,
-    bevelThickness: 0.055,
-    bevelSize: 0.04,
+    bevelThickness: 0.045,
+    bevelSize: 0.032,
     bevelSegments: 4,
-    curveSegments: 36,
+    curveSegments: 40,
   });
   rawGeo.rotateX(-Math.PI / 2);
-  rawGeo.translate(0, -0.21, 0);
+  rawGeo.translate(0, -0.18, 0);
   return rawGeo;
 }
 
@@ -105,10 +105,10 @@ function DonutSliceMesh({
     >
       <meshStandardMaterial
         color={spec.slice.color}
-        roughness={isDark ? 0.34 : 0.28}
-        metalness={0.14}
+        roughness={isDark ? 0.42 : 0.36}
+        metalness={0.05}
         emissive={active ? spec.slice.color : "#000000"}
-        emissiveIntensity={active ? 0.22 : 0}
+        emissiveIntensity={active ? 0.2 : 0}
       />
     </mesh>
   );
@@ -124,13 +124,13 @@ function EmptyRingMesh({ isDark }: { isDark: boolean }) {
 
   return (
     <mesh ref={ref} rotation={[-Math.PI / 2, 0, 0]}>
-      <torusGeometry args={[1.45, 0.32, 24, 64]} />
+      <torusGeometry args={[1.48, 0.32, 24, 64]} />
       <meshStandardMaterial
-        color={isDark ? "#232733" : "#DCE1EC"}
-        roughness={0.45}
-        metalness={0.1}
+        color={isDark ? "#252834" : "#DFE2EE"}
+        roughness={0.48}
+        metalness={0.05}
         transparent
-        opacity={0.75}
+        opacity={0.8}
       />
     </mesh>
   );
@@ -150,18 +150,17 @@ function ResponsiveDonutGroup({
   isDark: boolean;
 }) {
   const { viewport, invalidate } = useThree();
-  // Diâmetro total do donut (~3.84) + folga para o offset radial de seleção (~0.36)
-  const donutSpan = 4.2;
-  const fitWidth = (viewport.width * 0.84) / donutSpan;
-  const fitHeight = (viewport.height * 0.88) / (donutSpan * 0.82);
-  const scale = Math.max(0.32, Math.min(0.95, fitWidth, fitHeight));
+  const donutSpan = 4.15;
+  const fitWidth = (viewport.width * 0.86) / donutSpan;
+  const fitHeight = (viewport.height * 0.9) / (donutSpan * 0.84);
+  const scale = Math.max(0.35, Math.min(1.02, fitWidth, fitHeight));
 
   useEffect(() => {
     invalidate();
   }, [scale, invalidate]);
 
   return (
-    <group rotation={[0.08, 0, 0]} scale={[scale, scale, scale]}>
+    <group rotation={[0.04, 0, 0]} scale={[scale, scale, scale]}>
       {specs.length === 0 ? (
         <EmptyRingMesh isDark={isDark} />
       ) : (
@@ -227,12 +226,12 @@ export default function Donut3DScene({
     <Canvas
       dpr={[1, 2]}
       frameloop="demand"
-      camera={{ position: [0, 3.8, 4.1], fov: 36 }}
+      camera={{ position: [0, 4.8, 2.35], fov: 34 }}
       onPointerMissed={() => onSelectCategory(null)}
     >
-      <ambientLight intensity={isDark ? 0.85 : 1.05} />
-      <directionalLight position={[4, 7, 5]} intensity={isDark ? 1.55 : 1.35} />
-      <directionalLight position={[-4, 3, -4]} intensity={0.55} color="#A5B4FC" />
+      <ambientLight intensity={isDark ? 1.05 : 1.15} />
+      <directionalLight position={[4, 8, 4]} intensity={isDark ? 1.25 : 1.1} color="#FFFDF5" />
+      <directionalLight position={[-4, 4, -3]} intensity={0.55} color="#D5C2FA" />
 
       <ResponsiveDonutGroup
         specs={specs}
@@ -245,8 +244,8 @@ export default function Donut3DScene({
       <OrbitControls
         enablePan={false}
         enableZoom={false}
-        minPolarAngle={Math.PI / 5}
-        maxPolarAngle={Math.PI / 2.25}
+        minPolarAngle={Math.PI / 8}
+        maxPolarAngle={Math.PI / 2.6}
         enableDamping
         dampingFactor={0.08}
       />
